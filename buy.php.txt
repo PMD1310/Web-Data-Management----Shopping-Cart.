@@ -1,0 +1,190 @@
+<html>
+<head><title>Buy Products</title></head>
+<body>
+<h1><center> Shopping Cart!!!</center> </h1>
+<div>
+<?php
+session_start();
+class addtocart
+    {
+        var $name;
+        var $price;
+        var $total;
+        public function __construct($session_name, $session_price, $session_id)
+        {
+            $this->id = $session_id;
+            $this->name = $session_name;
+            $this->price = $session_price;    
+        }
+    }
+	 if(isset($_GET['clear']))
+    {
+        unset($_SESSION['clicked']);
+        $total = 0;
+    }
+   if(isset($_GET['delete']))
+    {
+        foreach ($_SESSION['clicked'] as $key => $values)
+        {
+            if($key == $_GET['delete'])
+            {
+                echo "Cart Empty";
+                unset($_SESSION['clicked'][$_GET['delete']]);
+            }
+        }
+    }
+    if(isset($_GET['buy']))
+    {
+        if(isset($_SESSION['user']))
+        {
+            foreach ($_SESSION['user'] as $u)
+            {
+                if($_GET['buy'] == $u['id'])
+                $_SESSION['clicked'][$_GET['buy']] = $u;
+            }
+        }
+        $total = 0;
+    }
+	echo "
+	<form action = 'buy.php' method = 'GET'>
+        <input type = 'hidden' name = 'clear' value = '1' />
+        <input type = 'submit' value = 'Empty Basket' > <br> </form>";
+echo "<table border=1><p/><tr>";   
+error_reporting(E_ALL);
+ini_set('display_errors','On');
+$xmlstr = file_get_contents('http://sandbox.api.ebaycommercenetwork.com/publisher/3.0/rest/CategoryTree?apiKey=78b0db8a-0ee1-4939-a2f9-d3cd95ec0fcc&visitorUserAgent&visitorIPAddress&trackingId=7000610&categoryId=72&showAllDescendants=true');
+$xml = new SimpleXMLElement($xmlstr);
+?>
+<?php 
+	$total = 0;
+	if(isset($_SESSION['clicked']))
+	{
+	    foreach ($_SESSION['clicked'] as $values)
+	    {
+	        echo "<tr>"; 
+	        echo "<td>".$values['name']."</td>";
+	        echo "<td>".$values['price']."</td>";
+	        echo "<td><a href = 'buy.php?delete=".$values['id']."'>Delete</a></td>";
+	        $total = $total + $values['price'];
+	        echo "</tr>";
+	    }
+	    echo "</table>";   
+	    }
+	    echo "<b> Total Price: $ ".$total;
+	    ?>
+<form action="buy.php" method="GET">
+				<br>
+				<br>
+				<label>Product Category</label>
+				<select name="productId">
+				<option value="default">Product Categories are</option>
+					<?php 
+					foreach ($xml->children() as $main) {
+						if($main->getName() == "category") {
+
+							$categories = $main->children();
+							foreach ($categories as $value) { 
+								if ($value->getName() == "categories") {
+									foreach ($value->children() as $categoryParts) {
+										foreach ($categoryParts as $catKey) {
+											if($catKey->getName() == "name") {
+												$categoryPartsName =  $catKey->name;
+												echo "<option value='".$categoryParts['id']."'>".$categoryParts->name."</option>";
+												echo "<p>".$categoryParts['id']."</p>";
+												echo "<optgroup label='".$categoryParts->name."'>";
+												$subCategories = $categoryParts->children();
+												foreach ($subCategories as $subCatValue) {
+													if($subCatValue->getName() == "categories") {
+														foreach ($subCatValue->children() as $subCategoryParts) {
+															if($subCategoryParts->getName() == 'category') {
+																$subCategoryId = $subCategoryParts["id"];
+															}
+															foreach ($subCategoryParts as $subKey) {
+																if ($subKey->getName() == "name") {
+																	$subCategoryPartName = $subCategoryParts->name;
+																}
+															}
+															echo "<option value=".$subCategoryId.">".$subCategoryPartName."</option>";
+														}
+													}
+												}
+												echo "</optgroup>";
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+
+				    ?>
+
+</select>
+
+<br> 
+<br>
+<label>Enter a keyword</label>
+<input type="text" name="searchKeyword" placeholder="Enter Keyword"><br><br>
+<input type="submit" value="Search Records">
+<br> <br>
+
+</form>
+</div>
+
+<div >
+	<?php
+	$_SESSION['user'] = array();
+   	if(isset($_GET['searchKeyword']) && isset($_GET['productId']) && $_GET['productId'] != "default")
+
+ {
+ 	echo "<table style='border: 1px solid black;'>";
+					echo "<tr>";
+					echo "<th style='border: 1px solid black;'>Name</th>";
+					echo "<th style='border: 1px solid black;'>Price</th>";
+					echo "<th style='border: 1px solid black;'>Description</th>";
+					echo "</tr>";
+    $searchKeyword = $_GET['searchKeyword'];
+	$productId = $_GET['productId'];
+	error_reporting(E_ALL);
+	ini_set('display_errors','On');
+	$searchresult = file_get_contents('http://sandbox.api.shopping.com/publisher/3.0/rest/GeneralSearch?apiKey=78b0db8a-0ee1-4939-a2f9-d3cd95ec0fcc&visitorUserAgent&visitorIPAddress&trackingId=7000610&categoryId='.$productId.'&keyword='.$searchKeyword.'&numItems=20');
+	$res = new SimpleXMLElement($searchresult);
+	foreach($res->children() as $categoriesChildren) {
+						if ($categoriesChildren->getName() == "categories") {
+							//echo $categoriesChildren->getName();
+							foreach($categoriesChildren->children() as $categoryChildren) {
+								   // echo $categoriesChildren->children();
+								if($categoryChildren->getName() == "category") {
+									//echo $categoryChildren->getName();
+									foreach($categoryChildren->children() as $itemChildren) {
+										//echo $categoryChildren->children();
+										if($itemChildren->getName() == "items") {
+											foreach($itemChildren->children() as $productChildren) {
+												//echo $itemChildren->children();
+												if($productChildren->getName() == "offer") {
+												   
+													
+													echo "<tr>";
+													echo "<td><a href = 'buy.php?buy=".$productChildren['id']."'>".$productChildren->name."</a></td>";
+													echo "<td style='border: 1px solid black;'>".$productChildren->basePrice."</td>";
+													echo "<td style='border: 1px solid black;'>".$productChildren->description."</td>";
+													echo "</tr>";
+													$session_name = (string)$productChildren->name;
+													$session_price = (string)$productChildren->basePrice;
+													$session_id = (string)$productChildren['id'];
+													$cart = new addtocart($session_name, $session_price, $session_id);
+
+											        $_SESSION['user'][] = (array)$cart;
+	                                                
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+    }
+}
+?>
+</body>
+</html>
